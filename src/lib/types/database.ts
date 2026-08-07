@@ -47,6 +47,8 @@ export interface ContractFinance {
   revenue_share_paid: boolean;
   subcontract_partner: string;
   subcontract_amount: number | null;
+  installment_periods: number | null;
+  installment_amount_each: number | null;
   created_at: string;
   updated_at: string;
 }

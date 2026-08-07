@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,22 +9,20 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  deleteInstallment,
   deleteProject,
   updateCertificationProgress,
   updateContractFinance,
   updateProject,
   updateTrainingProgress,
-  upsertInstallment,
 } from "@/lib/actions";
 import type {
   CertificationProgress,
   ContractFinance,
-  InstallmentPayment,
   ProjectType,
   ProjectWithRelations,
   TrainingProgress,
 } from "@/lib/types/database";
+import { createClient } from "@/lib/supabase/client";
 
 function NumberField({
   label,
@@ -202,6 +199,22 @@ function ContractTermsCard({
             />
           </div>
         )}
+
+        {local.is_installment && (
+          <div className="grid gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+            <NumberField
+              label="分几期"
+              value={local.installment_periods}
+              step="1"
+              onSave={(v) => saveFinance({ installment_periods: v })}
+            />
+            <NumberField
+              label="每期金额"
+              value={local.installment_amount_each}
+              onSave={(v) => saveFinance({ installment_amount_each: v })}
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -210,14 +223,12 @@ function ContractTermsCard({
 function FinanceTab({
   projectId,
   finance,
-  installments,
 }: {
   projectId: string;
   finance: ContractFinance | null | undefined;
-  installments: InstallmentPayment[];
 }) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [local, setLocal] = useState(finance);
 
   function saveFinance(updates: Partial<ContractFinance>) {
@@ -268,125 +279,7 @@ function FinanceTab({
           <span className="text-sm">分包已付款</span>
         </label>
       )}
-
-      {local.is_installment && (
-        <InstallmentTable
-          projectId={projectId}
-          installments={installments}
-          disabled={isPending}
-        />
-      )}
     </div>
-  );
-}
-
-function InstallmentTable({
-  projectId,
-  installments,
-  disabled,
-}: {
-  projectId: string;
-  installments: InstallmentPayment[];
-  disabled: boolean;
-}) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-
-  function addRow() {
-    startTransition(async () => {
-      await upsertInstallment(projectId, {
-        period_number: installments.length + 1,
-        amount: 0,
-        due_date: null,
-        is_paid: false,
-        paid_date: null,
-      });
-      router.refresh();
-    });
-  }
-
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">分期付款</CardTitle>
-        <Button size="sm" onClick={addRow} disabled={disabled || isPending}>
-          添加期数
-        </Button>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {installments.map((inst) => (
-          <div key={inst.id} className="grid gap-2 rounded-lg border p-3 sm:grid-cols-5">
-            <Input
-              type="number"
-              defaultValue={inst.period_number}
-              onBlur={(e) =>
-                startTransition(async () => {
-                  await upsertInstallment(projectId, {
-                    ...inst,
-                    period_number: Number(e.target.value),
-                  });
-                  router.refresh();
-                })
-              }
-            />
-            <Input
-              type="number"
-              placeholder="金额"
-              defaultValue={inst.amount}
-              onBlur={(e) =>
-                startTransition(async () => {
-                  await upsertInstallment(projectId, {
-                    ...inst,
-                    amount: Number(e.target.value),
-                  });
-                  router.refresh();
-                })
-              }
-            />
-            <Input
-              type="date"
-              defaultValue={inst.due_date ?? ""}
-              onBlur={(e) =>
-                startTransition(async () => {
-                  await upsertInstallment(projectId, {
-                    ...inst,
-                    due_date: e.target.value || null,
-                  });
-                  router.refresh();
-                })
-              }
-            />
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={inst.is_paid}
-                onCheckedChange={(checked) =>
-                  startTransition(async () => {
-                    await upsertInstallment(projectId, {
-                      ...inst,
-                      is_paid: checked === true,
-                    });
-                    router.refresh();
-                  })
-                }
-              />
-              已付
-            </label>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() =>
-                startTransition(async () => {
-                  await deleteInstallment(inst.id, projectId);
-                  router.refresh();
-                })
-              }
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
   );
 }
 
@@ -514,6 +407,32 @@ function TrainingTab({
 export function ProjectDetail({ project }: { project: ProjectWithRelations }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [projectType, setProjectType] = useState<ProjectType>(project.project_type);
+
+  async function ensureProgressForType(type: ProjectType) {
+    const supabase = createClient();
+    if (type === "certification" && !project.certification_progress) {
+      await supabase.from("certification_progress").upsert({ project_id: project.id });
+    }
+    if (type === "training" && !project.training_progress) {
+      await supabase.from("training_progress").upsert({ project_id: project.id });
+    }
+  }
+
+  function handleTypeChange(nextType: ProjectType) {
+    setProjectType(nextType);
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("client_name", project.client_name);
+      formData.set("project_type", nextType);
+      formData.set("status", project.status);
+      formData.set("contract_no", project.contract_no ?? "");
+      formData.set("notes", project.notes ?? "");
+      await updateProject(project.id, formData);
+      await ensureProgressForType(nextType);
+      router.refresh();
+    });
+  }
 
   function handleDelete() {
     if (!confirm("确定删除此项目？此操作不可恢复。")) return;
@@ -544,6 +463,7 @@ export function ProjectDetail({ project }: { project: ProjectWithRelations }) {
           <form
             className="grid gap-4 sm:grid-cols-2"
             action={async (formData) => {
+              formData.set("project_type", projectType);
               await updateProject(project.id, formData);
               router.refresh();
             }}
@@ -554,9 +474,10 @@ export function ProjectDetail({ project }: { project: ProjectWithRelations }) {
             </div>
             <div className="space-y-2">
               <Label>项目类型</Label>
+              <input type="hidden" name="project_type" value={projectType} />
               <select
-                name="project_type"
-                defaultValue={project.project_type}
+                value={projectType}
+                onChange={(e) => handleTypeChange(e.target.value as ProjectType)}
                 className="flex h-10 w-full rounded-md border border-slate-200 px-3 text-sm"
               >
                 <option value="certification">认证</option>
@@ -593,9 +514,9 @@ export function ProjectDetail({ project }: { project: ProjectWithRelations }) {
       </Card>
 
       <ContractTermsCard
-        key={`${project.id}-${project.project_type}-${project.contract_finance?.updated_at ?? "new"}`}
+        key={`${project.id}-${projectType}`}
         projectId={project.id}
-        projectType={project.project_type}
+        projectType={projectType}
         finance={project.contract_finance}
       />
 
@@ -609,16 +530,15 @@ export function ProjectDetail({ project }: { project: ProjectWithRelations }) {
             key={`${project.id}-finance-${project.contract_finance?.updated_at ?? "new"}`}
             projectId={project.id}
             finance={project.contract_finance}
-            installments={project.installment_payments ?? []}
           />
         </TabsContent>
         <TabsContent value="progress">
-          {project.project_type === "certification" ? (
+          {projectType === "certification" ? (
             <CertificationTab
               projectId={project.id}
               progress={project.certification_progress}
             />
-          ) : project.project_type === "training" ? (
+          ) : projectType === "training" ? (
             <TrainingTab projectId={project.id} progress={project.training_progress} />
           ) : (
             <p className="text-slate-500">此项目类型暂无专用进度模板</p>
