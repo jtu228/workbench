@@ -15,18 +15,15 @@
 
 - Next.js 16 + TypeScript + Tailwind CSS
 - Supabase (PostgreSQL + Auth + Storage)
+- Cloudflare Workers（通过 OpenNext 部署）
 
 ## 快速开始
 
 ### 1. 配置 Supabase
 
 1. 在 [Supabase](https://supabase.com) 创建项目
-2. 在 SQL Editor 中执行 `supabase/migrations/001_initial_schema.sql`
-3. 复制 `.env.local.example` 为 `.env.local` 并填入密钥：
-
-```bash
-cp .env.local.example .env.local
-```
+2. 在 SQL Editor 中执行 `supabase/migrations/` 下的 SQL
+3. 复制 `.env.local.example` 为 `.env.local` 并填入密钥
 
 ### 2. 启动 Web 应用
 
@@ -37,14 +34,29 @@ npm run dev
 
 访问 http://localhost:3001 ，注册/登录后即可使用。
 
-### 3. 部署网页
+### 3. 部署到 Cloudflare Workers
 
-将 GitHub 仓库导入 Vercel，并配置以下环境变量：
+> 不要用传统 Cloudflare Pages 静态构建。本项目是带服务端的 Next.js，需用 **Workers + OpenNext**。
+
+#### Cloudflare 构建配置
+
+| 配置项 | 值 |
+|------|------|
+| 构建命令 | `npx opennextjs-cloudflare build` |
+| 部署命令 | `npx wrangler deploy` |
+| Node.js 版本 | `20`（或更高） |
+| 安装命令 | `npm ci`（默认即可，不要额外加奇怪参数） |
+
+#### 必填环境变量（Build Variables and secrets）
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-部署完成后即可通过 Vercel 提供的公网网址访问。
+本地也可直接部署：
+
+```bash
+npm run deploy
+```
 
 ## 页面结构
 
