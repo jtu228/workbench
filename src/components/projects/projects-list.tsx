@@ -15,7 +15,7 @@ import { CreateProjectDialog } from "@/components/projects/create-project-dialog
 import { PROJECT_STATUS_LABELS, PROJECT_TYPE_LABELS } from "@/lib/constants";
 import { filterProjects } from "@/lib/todos";
 import type { ProjectWithRelations } from "@/lib/types/database";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getProjectDisplayAmount } from "@/lib/utils";
 
 export function ProjectsList({ projects }: { projects: ProjectWithRelations[] }) {
   const [search, setSearch] = useState("");
@@ -112,7 +112,9 @@ export function ProjectsList({ projects }: { projects: ProjectWithRelations[] })
                     </td>
                     <td className="px-4 py-3">{PROJECT_TYPE_LABELS[project.project_type]}</td>
                     <td className="px-4 py-3">{project.contract_no ?? "—"}</td>
-                    <td className="px-4 py-3">{formatCurrency(f?.contract_amount)}</td>
+                    <td className="px-4 py-3">
+                      {formatCurrency(getProjectDisplayAmount(f, project.project_type))}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
                         <Badge variant={f?.is_invoiced ? "success" : "warning"}>

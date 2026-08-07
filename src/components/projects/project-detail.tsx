@@ -22,9 +22,190 @@ import type {
   CertificationProgress,
   ContractFinance,
   InstallmentPayment,
+  ProjectType,
   ProjectWithRelations,
   TrainingProgress,
 } from "@/lib/types/database";
+
+function NumberField({
+  label,
+  value,
+  onSave,
+  step = "0.01",
+}: {
+  label: string;
+  value: number | null | undefined;
+  onSave: (value: number | null) => void;
+  step?: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Input
+        type="number"
+        step={step}
+        defaultValue={value ?? ""}
+        onBlur={(e) => onSave(e.target.value ? Number(e.target.value) : null)}
+      />
+    </div>
+  );
+}
+
+function ContractTermsCard({
+  projectId,
+  projectType,
+  finance,
+}: {
+  projectId: string;
+  projectType: ProjectType;
+  finance: ContractFinance | null | undefined;
+}) {
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+  const [local, setLocal] = useState(finance);
+
+  function saveFinance(updates: Partial<ContractFinance>) {
+    if (!local) return;
+    const next = { ...local, ...updates };
+    setLocal(next);
+    startTransition(async () => {
+      await updateContractFinance(projectId, updates);
+      router.refresh();
+    });
+  }
+
+  if (!local) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">合同价格与条款</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {projectType === "certification" && (
+          <div className="grid gap-4 sm:grid-cols-3">
+            <NumberField
+              label="初次认证费用"
+              value={local.initial_cert_fee}
+              onSave={(v) => saveFinance({ initial_cert_fee: v })}
+            />
+            <NumberField
+              label="监督一费用"
+              value={local.surveillance_1_fee}
+              onSave={(v) => saveFinance({ surveillance_1_fee: v })}
+            />
+            <NumberField
+              label="监督二费用"
+              value={local.surveillance_2_fee}
+              onSave={(v) => saveFinance({ surveillance_2_fee: v })}
+            />
+          </div>
+        )}
+
+        {projectType === "training" && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <NumberField
+              label="培训费"
+              value={local.training_fee}
+              onSave={(v) => saveFinance({ training_fee: v })}
+            />
+            <NumberField
+              label="服务人天"
+              value={local.service_man_days}
+              step="0.5"
+              onSave={(v) => saveFinance({ service_man_days: v })}
+            />
+          </div>
+        )}
+
+        {projectType === "technical_service" && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <NumberField
+              label="技术服务费"
+              value={local.technical_service_fee}
+              onSave={(v) => saveFinance({ technical_service_fee: v })}
+            />
+            <NumberField
+              label="服务人天"
+              value={local.service_man_days}
+              step="0.5"
+              onSave={(v) => saveFinance({ service_man_days: v })}
+            />
+          </div>
+        )}
+
+        {projectType === "custom" && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <NumberField
+              label="合同金额"
+              value={local.contract_amount}
+              onSave={(v) => saveFinance({ contract_amount: v })}
+            />
+            <NumberField
+              label="服务人天"
+              value={local.service_man_days}
+              step="0.5"
+              onSave={(v) => saveFinance({ service_man_days: v })}
+            />
+          </div>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[
+            { key: "has_travel_expense" as const, label: "含交通差旅费" },
+            { key: "is_installment" as const, label: "分期付款" },
+            { key: "has_revenue_share" as const, label: "涉及分成" },
+            { key: "has_subcontract" as const, label: "涉及分包" },
+          ].map((item) => (
+            <label key={item.key} className="flex items-center gap-2 rounded-lg border p-3">
+              <Checkbox
+                checked={local[item.key]}
+                onCheckedChange={(checked) => saveFinance({ [item.key]: checked === true })}
+              />
+              <span className="text-sm">{item.label}</span>
+            </label>
+          ))}
+        </div>
+
+        {local.has_revenue_share && (
+          <div className="grid gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>分成方名称</Label>
+              <Input
+                defaultValue={local.revenue_share_partner ?? ""}
+                placeholder="填写分成方名称"
+                onBlur={(e) => saveFinance({ revenue_share_partner: e.target.value })}
+              />
+            </div>
+            <NumberField
+              label="分成金额"
+              value={local.revenue_share_amount}
+              onSave={(v) => saveFinance({ revenue_share_amount: v })}
+            />
+          </div>
+        )}
+
+        {local.has_subcontract && (
+          <div className="grid gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>分包方名称</Label>
+              <Input
+                defaultValue={local.subcontract_partner ?? ""}
+                placeholder="填写分包方名称"
+                onBlur={(e) => saveFinance({ subcontract_partner: e.target.value })}
+              />
+            </div>
+            <NumberField
+              label="分包金额"
+              value={local.subcontract_amount}
+              onSave={(v) => saveFinance({ subcontract_amount: v })}
+            />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function FinanceTab({
   projectId,
@@ -52,57 +233,40 @@ function FinanceTab({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label>合同金额</Label>
-          <Input
-            type="number"
-            defaultValue={local.contract_amount ?? ""}
-            onBlur={(e) =>
-              saveFinance({ contract_amount: e.target.value ? Number(e.target.value) : null })
-            }
-          />
-        </div>
-      </div>
-
       <div className="grid gap-3 sm:grid-cols-2">
         {[
-          { key: "is_invoiced", label: "已开票" },
-          { key: "is_paid", label: "已付款" },
-          { key: "has_subcontract", label: "涉及分成分包" },
-          { key: "system_completed", label: "系统已完工" },
-          { key: "has_travel_expense", label: "含交通差旅费" },
-          { key: "is_installment", label: "分期付款" },
+          { key: "is_invoiced" as const, label: "已开票" },
+          { key: "is_paid" as const, label: "已付款" },
+          { key: "system_completed" as const, label: "系统已完工" },
         ].map((item) => (
           <label key={item.key} className="flex items-center gap-2 rounded-lg border p-3">
             <Checkbox
-              checked={local[item.key as keyof ContractFinance] as boolean}
-              onCheckedChange={(checked) =>
-                saveFinance({ [item.key]: checked === true })
-              }
+              checked={local[item.key]}
+              onCheckedChange={(checked) => saveFinance({ [item.key]: checked === true })}
             />
             <span className="text-sm">{item.label}</span>
           </label>
         ))}
       </div>
 
+      {local.has_revenue_share && (
+        <label className="flex items-center gap-2 rounded-lg border p-3">
+          <Checkbox
+            checked={local.revenue_share_paid}
+            onCheckedChange={(checked) => saveFinance({ revenue_share_paid: checked === true })}
+          />
+          <span className="text-sm">分成已付款</span>
+        </label>
+      )}
+
       {local.has_subcontract && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">分包付款</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <label className="flex items-center gap-2">
-              <Checkbox
-                checked={local.subcontract_paid}
-                onCheckedChange={(checked) =>
-                  saveFinance({ subcontract_paid: checked === true })
-                }
-              />
-              <span className="text-sm">分包已付款</span>
-            </label>
-          </CardContent>
-        </Card>
+        <label className="flex items-center gap-2 rounded-lg border p-3">
+          <Checkbox
+            checked={local.subcontract_paid}
+            onCheckedChange={(checked) => saveFinance({ subcontract_paid: checked === true })}
+          />
+          <span className="text-sm">分包已付款</span>
+        </label>
       )}
 
       {local.is_installment && (
@@ -325,11 +489,11 @@ function TrainingTab({
   if (!local) return <p className="text-slate-500">进度信息加载中...</p>;
 
   const items = [
-    { key: "survey_arranged", label: "已安排老师调研" },
-    { key: "standard_training_arranged", label: "标准宣贯/内审员培训已安排" },
-    { key: "coaching_arranged", label: "已安排辅导" },
-    { key: "system_docs_completed", label: "体系文件已完成" },
-  ] as const;
+    { key: "survey_arranged" as const, label: "已安排老师调研" },
+    { key: "standard_training_arranged" as const, label: "标准宣贯/内审员培训已安排" },
+    { key: "coaching_arranged" as const, label: "已安排辅导" },
+    { key: "system_docs_completed" as const, label: "体系文件已完成" },
+  ];
 
   return (
     <div className="space-y-3">
@@ -365,9 +529,7 @@ export function ProjectDetail({ project }: { project: ProjectWithRelations }) {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">{project.client_name}</h1>
-          <p className="text-slate-500">
-            合同号 {project.contract_no ?? "无"}
-          </p>
+          <p className="text-slate-500">合同号 {project.contract_no ?? "无"}</p>
         </div>
         <Button variant="destructive" onClick={handleDelete} disabled={isPending}>
           删除项目
@@ -430,13 +592,21 @@ export function ProjectDetail({ project }: { project: ProjectWithRelations }) {
         </CardContent>
       </Card>
 
+      <ContractTermsCard
+        key={`${project.id}-${project.project_type}-${project.contract_finance?.updated_at ?? "new"}`}
+        projectId={project.id}
+        projectType={project.project_type}
+        finance={project.contract_finance}
+      />
+
       <Tabs defaultValue="finance">
         <TabsList>
-          <TabsTrigger value="finance">财务</TabsTrigger>
+          <TabsTrigger value="finance">财务状态</TabsTrigger>
           <TabsTrigger value="progress">进度</TabsTrigger>
         </TabsList>
         <TabsContent value="finance">
           <FinanceTab
+            key={`${project.id}-finance-${project.contract_finance?.updated_at ?? "new"}`}
             projectId={project.id}
             finance={project.contract_finance}
             installments={project.installment_payments ?? []}

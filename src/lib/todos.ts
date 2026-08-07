@@ -32,11 +32,24 @@ export function buildTodoItems(
           priority: "high",
         });
       }
+      if (finance.has_revenue_share && !finance.revenue_share_paid) {
+        todos.push({
+          id: `${project.id}-revenue-share`,
+          title: `${project.client_name}：分成未付款`,
+          description: finance.revenue_share_partner
+            ? `分成方 ${finance.revenue_share_partner}`
+            : "涉及分成，需跟进付款",
+          href: `/projects/${project.id}`,
+          priority: "high",
+        });
+      }
       if (finance.has_subcontract && !finance.subcontract_paid) {
         todos.push({
           id: `${project.id}-subcontract`,
           title: `${project.client_name}：分包未付款`,
-          description: "涉及分成分包，需跟进付款",
+          description: finance.subcontract_partner
+            ? `分包方 ${finance.subcontract_partner}`
+            : "涉及分包，需跟进付款",
           href: `/projects/${project.id}`,
           priority: "high",
         });

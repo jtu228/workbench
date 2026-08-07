@@ -35,6 +35,18 @@ export interface ContractFinance {
   has_travel_expense: boolean;
   is_installment: boolean;
   contract_amount: number | null;
+  initial_cert_fee: number | null;
+  surveillance_1_fee: number | null;
+  surveillance_2_fee: number | null;
+  training_fee: number | null;
+  technical_service_fee: number | null;
+  service_man_days: number | null;
+  has_revenue_share: boolean;
+  revenue_share_partner: string;
+  revenue_share_amount: number | null;
+  revenue_share_paid: boolean;
+  subcontract_partner: string;
+  subcontract_amount: number | null;
   created_at: string;
   updated_at: string;
 }
