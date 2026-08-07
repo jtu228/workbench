@@ -1,9 +1,10 @@
 import type { DocType, EventType, ProjectStatus, ProjectType } from "./types/database";
 
 export const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
-  certification: "认证项目",
-  training: "培训项目",
-  other: "其他",
+  certification: "认证",
+  training: "培训",
+  technical_service: "技术服务",
+  custom: "自定义",
 };
 
 export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {

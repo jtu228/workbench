@@ -364,9 +364,9 @@ export function ProjectDetail({ project }: { project: ProjectWithRelations }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">{project.name}</h1>
+          <h1 className="text-2xl font-bold">{project.client_name}</h1>
           <p className="text-slate-500">
-            {project.client_name} · 合同号 {project.contract_no ?? "无"}
+            合同号 {project.contract_no ?? "无"}
           </p>
         </div>
         <Button variant="destructive" onClick={handleDelete} disabled={isPending}>
@@ -387,10 +387,6 @@ export function ProjectDetail({ project }: { project: ProjectWithRelations }) {
             }}
           >
             <div className="space-y-2">
-              <Label>项目名称</Label>
-              <Input name="name" defaultValue={project.name} required />
-            </div>
-            <div className="space-y-2">
               <Label>客户名称</Label>
               <Input name="client_name" defaultValue={project.client_name} required />
             </div>
@@ -401,9 +397,10 @@ export function ProjectDetail({ project }: { project: ProjectWithRelations }) {
                 defaultValue={project.project_type}
                 className="flex h-10 w-full rounded-md border border-slate-200 px-3 text-sm"
               >
-                <option value="certification">认证项目</option>
-                <option value="training">培训项目</option>
-                <option value="other">其他</option>
+                <option value="certification">认证</option>
+                <option value="training">培训</option>
+                <option value="technical_service">技术服务</option>
+                <option value="custom">自定义</option>
               </select>
             </div>
             <div className="space-y-2">

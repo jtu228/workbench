@@ -8,7 +8,7 @@ create table if not exists public.projects (
   user_id uuid not null references auth.users(id) on delete cascade,
   name text not null,
   client_name text not null default '',
-  project_type text not null default 'other' check (project_type in ('certification', 'training', 'other')),
+  project_type text not null default 'custom' check (project_type in ('certification', 'training', 'technical_service', 'custom')),
   status text not null default 'active' check (status in ('active', 'completed', 'archived')),
   contract_no text,
   notes text default '',

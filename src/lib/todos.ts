@@ -17,7 +17,7 @@ export function buildTodoItems(
       if (!finance.is_invoiced) {
         todos.push({
           id: `${project.id}-invoice`,
-          title: `${project.name}：未开票`,
+          title: `${project.client_name}：未开票`,
           description: `客户 ${project.client_name}`,
           href: `/projects/${project.id}`,
           priority: "medium",
@@ -26,7 +26,7 @@ export function buildTodoItems(
       if (!finance.is_paid) {
         todos.push({
           id: `${project.id}-paid`,
-          title: `${project.name}：未付款`,
+          title: `${project.client_name}：未付款`,
           description: `客户 ${project.client_name}`,
           href: `/projects/${project.id}`,
           priority: "high",
@@ -35,7 +35,7 @@ export function buildTodoItems(
       if (finance.has_subcontract && !finance.subcontract_paid) {
         todos.push({
           id: `${project.id}-subcontract`,
-          title: `${project.name}：分包未付款`,
+          title: `${project.client_name}：分包未付款`,
           description: "涉及分成分包，需跟进付款",
           href: `/projects/${project.id}`,
           priority: "high",
@@ -44,7 +44,7 @@ export function buildTodoItems(
       if (!finance.system_completed) {
         todos.push({
           id: `${project.id}-system`,
-          title: `${project.name}：系统未完工`,
+          title: `${project.client_name}：系统未完工`,
           description: "请确认系统完工状态",
           href: `/projects/${project.id}`,
           priority: "medium",
@@ -57,7 +57,7 @@ export function buildTodoItems(
       if (cp.audit_scheduled && cp.audit_date && !cp.teacher_invoice_processed) {
         todos.push({
           id: `${project.id}-teacher-invoice`,
-          title: `${project.name}：老师发票未报销`,
+          title: `${project.client_name}：老师发票未报销`,
           description: `审核日期 ${cp.audit_date}`,
           href: `/projects/${project.id}`,
           priority: "high",
@@ -66,7 +66,7 @@ export function buildTodoItems(
       if (cp.feedback_submitted && !cp.feedback_processed) {
         todos.push({
           id: `${project.id}-feedback`,
-          title: `${project.name}：审核反馈未处理`,
+          title: `${project.client_name}：审核反馈未处理`,
           description: "资料已提交，需处理反馈",
           href: `/projects/${project.id}`,
           priority: "high",
@@ -75,7 +75,7 @@ export function buildTodoItems(
       if (cp.audit_scheduled && !cp.certificate_issued) {
         todos.push({
           id: `${project.id}-cert`,
-          title: `${project.name}：未发证`,
+          title: `${project.client_name}：未发证`,
           description: "审核已完成或进行中，关注发证状态",
           href: `/projects/${project.id}`,
           priority: "medium",
@@ -88,7 +88,7 @@ export function buildTodoItems(
       if (!tp.system_docs_completed) {
         todos.push({
           id: `${project.id}-docs`,
-          title: `${project.name}：体系文件未完成`,
+          title: `${project.client_name}：体系文件未完成`,
           description: "培训项目需完成体系文件",
           href: `/projects/${project.id}`,
           priority: "medium",
@@ -108,7 +108,7 @@ export function buildTodoItems(
         const project = projects.find((p) => p.id === inst.project_id);
         todos.push({
           id: `inst-${inst.id}`,
-          title: `${project?.name ?? "项目"}：第${inst.period_number}期付款即将到期`,
+          title: `${project?.client_name ?? "项目"}：第${inst.period_number}期付款即将到期`,
           description: `应付日期 ${inst.due_date}`,
           href: `/projects/${inst.project_id}`,
           priority: due < today ? "high" : "medium",
@@ -139,7 +139,7 @@ export function filterProjects(
     }
     if (filters.search) {
       const q = filters.search.toLowerCase();
-      const haystack = `${project.name} ${project.client_name} ${project.contract_no ?? ""}`.toLowerCase();
+      const haystack = `${project.client_name} ${project.contract_no ?? ""}`.toLowerCase();
       if (!haystack.includes(q)) return false;
     }
     const finance = project.contract_finance;

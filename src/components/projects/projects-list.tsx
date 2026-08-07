@@ -51,9 +51,10 @@ export function ProjectsList({ projects }: { projects: ProjectWithRelations[] })
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">全部类型</SelectItem>
-            <SelectItem value="certification">认证项目</SelectItem>
-            <SelectItem value="training">培训项目</SelectItem>
-            <SelectItem value="other">其他</SelectItem>
+            <SelectItem value="certification">认证</SelectItem>
+            <SelectItem value="training">培训</SelectItem>
+            <SelectItem value="technical_service">技术服务</SelectItem>
+            <SelectItem value="custom">自定义</SelectItem>
           </SelectContent>
         </Select>
         <Select value={status} onValueChange={setStatus}>
@@ -84,7 +85,6 @@ export function ProjectsList({ projects }: { projects: ProjectWithRelations[] })
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-500">
             <tr>
-              <th className="px-4 py-3 font-medium">项目名称</th>
               <th className="px-4 py-3 font-medium">客户</th>
               <th className="px-4 py-3 font-medium">类型</th>
               <th className="px-4 py-3 font-medium">合同号</th>
@@ -96,7 +96,7 @@ export function ProjectsList({ projects }: { projects: ProjectWithRelations[] })
           <tbody className="divide-y divide-slate-100">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
                   暂无项目
                 </td>
               </tr>
@@ -107,10 +107,9 @@ export function ProjectsList({ projects }: { projects: ProjectWithRelations[] })
                   <tr key={project.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3">
                       <Link href={`/projects/${project.id}`} className="font-medium text-slate-900 hover:underline">
-                        {project.name}
+                        {project.client_name}
                       </Link>
                     </td>
-                    <td className="px-4 py-3">{project.client_name}</td>
                     <td className="px-4 py-3">{PROJECT_TYPE_LABELS[project.project_type]}</td>
                     <td className="px-4 py-3">{project.contract_no ?? "—"}</td>
                     <td className="px-4 py-3">{formatCurrency(f?.contract_amount)}</td>

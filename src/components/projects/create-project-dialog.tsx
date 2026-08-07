@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -54,10 +53,6 @@ export function CreateProjectDialog() {
         <h2 className="mb-4 text-lg font-semibold">新建项目</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">项目名称</Label>
-            <Input id="name" name="name" required />
-          </div>
-          <div className="space-y-2">
             <Label htmlFor="client_name">客户名称</Label>
             <Input id="client_name" name="client_name" required />
           </div>
@@ -69,19 +64,16 @@ export function CreateProjectDialog() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="certification">认证项目</SelectItem>
-                <SelectItem value="training">培训项目</SelectItem>
-                <SelectItem value="other">其他</SelectItem>
+                <SelectItem value="certification">认证</SelectItem>
+                <SelectItem value="training">培训</SelectItem>
+                <SelectItem value="technical_service">技术服务</SelectItem>
+                <SelectItem value="custom">自定义</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-2">
-            <Checkbox id="auto_contract_no" name="auto_contract_no" defaultChecked />
-            <Label htmlFor="auto_contract_no">自动生成合同号</Label>
-          </div>
           <div className="space-y-2">
-            <Label htmlFor="contract_no">合同号（手动填写时）</Label>
-            <Input id="contract_no" name="contract_no" placeholder="留空则自动生成" />
+            <Label htmlFor="contract_no">合同号</Label>
+            <Input id="contract_no" name="contract_no" placeholder="例如：4400/QES/2026/86001" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="notes">备注</Label>

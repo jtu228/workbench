@@ -1,4 +1,8 @@
-export type ProjectType = "certification" | "training" | "other";
+export type ProjectType =
+  | "certification"
+  | "training"
+  | "technical_service"
+  | "custom";
 export type ProjectStatus = "active" | "completed" | "archived";
 export type EventType =
   | "client_visit"

@@ -152,9 +152,9 @@ export default async function DashboardPage() {
                   className="flex items-center justify-between py-3 hover:bg-slate-50"
                 >
                   <div>
-                    <p className="font-medium">{project.name}</p>
+                    <p className="font-medium">{project.client_name}</p>
                     <p className="text-sm text-slate-500">
-                      {project.client_name} · {PROJECT_TYPE_LABELS[project.project_type]}
+                      {PROJECT_TYPE_LABELS[project.project_type]}
                     </p>
                   </div>
                   <span className="text-sm text-slate-400">{project.contract_no ?? "无合同号"}</span>

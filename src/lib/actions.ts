@@ -11,28 +11,18 @@ export async function createProject(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("未登录");
 
-  const name = formData.get("name") as string;
-  const client_name = formData.get("client_name") as string;
+  const client_name = (formData.get("client_name") as string)?.trim();
+  if (!client_name) throw new Error("请填写客户名称");
+
   const project_type = formData.get("project_type") as ProjectType;
   const notes = (formData.get("notes") as string) || "";
-  const autoContractNo = formData.get("auto_contract_no") === "on";
-
-  let contract_no: string | null = (formData.get("contract_no") as string) || null;
-
-  if (autoContractNo) {
-    const { data, error } = await supabase.rpc("generate_contract_number", {
-      p_user_id: user.id,
-      p_prefix: "ZD",
-    });
-    if (error) throw error;
-    contract_no = data as string;
-  }
+  const contract_no = ((formData.get("contract_no") as string) || "").trim() || null;
 
   const { data: project, error } = await supabase
     .from("projects")
     .insert({
       user_id: user.id,
-      name,
+      name: client_name,
       client_name,
       project_type,
       notes,
@@ -50,15 +40,17 @@ export async function createProject(formData: FormData) {
 
 export async function updateProject(id: string, formData: FormData) {
   const supabase = await createClient();
+  const client_name = (formData.get("client_name") as string)?.trim();
+  if (!client_name) throw new Error("请填写客户名称");
 
   const { error } = await supabase
     .from("projects")
     .update({
-      name: formData.get("name") as string,
-      client_name: formData.get("client_name") as string,
+      name: client_name,
+      client_name,
       project_type: formData.get("project_type") as ProjectType,
       status: formData.get("status") as string,
-      contract_no: (formData.get("contract_no") as string) || null,
+      contract_no: ((formData.get("contract_no") as string) || "").trim() || null,
       notes: (formData.get("notes") as string) || "",
     })
     .eq("id", id);
