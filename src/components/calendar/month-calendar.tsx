@@ -18,11 +18,31 @@ import { zhCN } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { EVENT_TYPE_COLORS, EVENT_TYPE_LABELS } from "@/lib/constants";
-import type { CalendarEvent, EventType } from "@/lib/types/database";
+import { EVENT_TYPE_COLORS, EVENT_TYPE_LABELS, LEAVE_KIND_COLORS, LEAVE_KIND_LABELS } from "@/lib/constants";
+import { formatEventLocation } from "@/lib/locations";
+import type { CalendarEvent, EventType, LeaveKind } from "@/lib/types/database";
 import { cn } from "@/lib/utils";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+
+function eventTypeLabel(event: CalendarEvent) {
+  if (event.event_type === "leave" && event.leave_kind) {
+    return LEAVE_KIND_LABELS[event.leave_kind as LeaveKind];
+  }
+  return EVENT_TYPE_LABELS[event.event_type as EventType];
+}
+
+function eventColor(event: CalendarEvent) {
+  if (event.event_type === "leave" && event.leave_kind) {
+    return LEAVE_KIND_COLORS[event.leave_kind as LeaveKind];
+  }
+  return EVENT_TYPE_COLORS[event.event_type as EventType];
+}
+
+function eventLabel(event: CalendarEvent) {
+  const location = formatEventLocation(event.province, event.city);
+  return [event.title, eventTypeLabel(event), location].filter(Boolean).join(" · ");
+}
 
 function eventOnDay(event: CalendarEvent, day: Date) {
   const start = parseISO(event.start_date);
@@ -104,7 +124,7 @@ export function MonthCalendar({
               type="button"
               onClick={() => setSelectedDay(day)}
               className={cn(
-                "min-h-[88px] bg-white p-1.5 text-left transition-colors hover:bg-slate-50",
+                "min-h-[88px] bg-white p-1.5 text-left transition-all duration-150 hover:bg-slate-50 active:bg-slate-100",
                 !inMonth && "bg-slate-50/80 text-slate-400",
                 selected && "ring-2 ring-inset ring-slate-900",
                 isToday(day) && "bg-blue-50/50"
@@ -122,13 +142,28 @@ export function MonthCalendar({
                 {dayEvents.slice(0, 3).map((event) => (
                   <div
                     key={event.id}
+                    role="button"
+                    tabIndex={0}
                     className="truncate rounded px-1 py-0.5 text-[10px] text-white"
                     style={{
-                      backgroundColor: EVENT_TYPE_COLORS[event.event_type as EventType],
+                      backgroundColor: eventColor(event),
                     }}
-                    title={event.title}
+                    title={eventLabel(event)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedDay(day);
+                      onEventClick(event);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSelectedDay(day);
+                        onEventClick(event);
+                      }
+                    }}
                   >
-                    {event.title}
+                    {eventLabel(event)}
                   </div>
                 ))}
                 {dayEvents.length > 3 && (
@@ -154,19 +189,24 @@ export function MonthCalendar({
                   <button
                     type="button"
                     onClick={() => onEventClick(event)}
-                    className="flex w-full items-center gap-3 rounded-lg border border-slate-100 p-3 text-left hover:bg-slate-50"
+                    className="flex w-full items-center gap-3 rounded-lg border border-slate-100 p-3 text-left transition-all duration-150 hover:border-slate-200 hover:bg-slate-50 hover:shadow-sm active:scale-[0.99]"
                   >
                     <span
                       className="h-3 w-3 shrink-0 rounded-full"
                       style={{
-                        backgroundColor: EVENT_TYPE_COLORS[event.event_type as EventType],
+                        backgroundColor: eventColor(event),
                       }}
                     />
                     <div className="min-w-0 flex-1">
                       <p className="font-medium">{event.title}</p>
                       <p className="text-xs text-slate-500">
-                        {EVENT_TYPE_LABELS[event.event_type as EventType]}
-                        {event.description ? ` · ${event.description}` : ""}
+                        {[
+                          eventTypeLabel(event),
+                          formatEventLocation(event.province, event.city),
+                          event.description,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </p>
                     </div>
                   </button>

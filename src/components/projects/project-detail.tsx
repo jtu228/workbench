@@ -1,23 +1,29 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DateSelect } from "@/components/ui/date-select";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
 import {
   deleteProject,
+  syncInstallmentPeriods,
   updateCertificationProgress,
   updateContractFinance,
+  updateInstallmentAmount,
   updateProject,
   updateTrainingProgress,
 } from "@/lib/actions";
 import type {
   CertificationProgress,
   ContractFinance,
+  InstallmentPayment,
   ProjectType,
   ProjectWithRelations,
   TrainingProgress,
@@ -52,14 +58,43 @@ function ContractTermsCard({
   projectId,
   projectType,
   finance,
+  installments,
 }: {
   projectId: string;
   projectType: ProjectType;
   finance: ContractFinance | null | undefined;
+  installments: InstallmentPayment[];
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [local, setLocal] = useState(finance);
+  const [localInstallments, setLocalInstallments] = useState(
+    [...installments].sort((a, b) => a.period_number - b.period_number)
+  );
+
+  useEffect(() => {
+    const periods = local?.installment_periods;
+    if (!local?.is_installment || !periods || periods <= 0) return;
+    if (localInstallments.length === periods) return;
+
+    let cancelled = false;
+    startTransition(async () => {
+      const synced = await syncInstallmentPeriods(projectId, periods);
+      if (!cancelled) {
+        setLocalInstallments(synced as InstallmentPayment[]);
+        router.refresh();
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    local?.is_installment,
+    local?.installment_periods,
+    localInstallments.length,
+    projectId,
+    router,
+  ]);
 
   function saveFinance(updates: Partial<ContractFinance>) {
     if (!local) return;
@@ -67,6 +102,28 @@ function ContractTermsCard({
     setLocal(next);
     startTransition(async () => {
       await updateContractFinance(projectId, updates);
+      router.refresh();
+    });
+  }
+
+  function savePeriods(value: number | null) {
+    if (!local) return;
+    const periods = value && value > 0 ? Math.floor(value) : null;
+    setLocal({ ...local, installment_periods: periods });
+    startTransition(async () => {
+      const synced = await syncInstallmentPeriods(projectId, periods);
+      setLocalInstallments(synced as InstallmentPayment[]);
+      router.refresh();
+    });
+  }
+
+  function saveInstallmentAmount(installmentId: string, amount: number | null) {
+    const nextAmount = amount ?? 0;
+    setLocalInstallments((prev) =>
+      prev.map((row) => (row.id === installmentId ? { ...row, amount: nextAmount } : row))
+    );
+    startTransition(async () => {
+      await updateInstallmentAmount(projectId, installmentId, nextAmount);
       router.refresh();
     });
   }
@@ -201,18 +258,27 @@ function ContractTermsCard({
         )}
 
         {local.is_installment && (
-          <div className="grid gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
-            <NumberField
-              label="分几期"
-              value={local.installment_periods}
-              step="1"
-              onSave={(v) => saveFinance({ installment_periods: v })}
-            />
-            <NumberField
-              label="每期金额"
-              value={local.installment_amount_each}
-              onSave={(v) => saveFinance({ installment_amount_each: v })}
-            />
+          <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="max-w-xs">
+              <NumberField
+                label="分几期"
+                value={local.installment_periods}
+                step="1"
+                onSave={savePeriods}
+              />
+            </div>
+            {localInstallments.length > 0 && (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {localInstallments.map((inst) => (
+                  <NumberField
+                    key={`${inst.id}-${inst.period_number}`}
+                    label={`第${inst.period_number}期金额`}
+                    value={inst.amount}
+                    onSave={(v) => saveInstallmentAmount(inst.id, v)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </CardContent>
@@ -286,9 +352,11 @@ function FinanceTab({
 function CertificationTab({
   projectId,
   progress,
+  hasTravelExpense,
 }: {
   projectId: string;
   progress: CertificationProgress | null | undefined;
+  hasTravelExpense: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -315,22 +383,37 @@ function CertificationTab({
         <span>已安排审核时间</span>
       </label>
       {local.audit_scheduled && (
-        <div className="space-y-2 pl-4">
-          <Label>审核日期</Label>
-          <Input
-            type="date"
-            defaultValue={local.audit_date ?? ""}
-            onBlur={(e) => save({ audit_date: e.target.value || null })}
+        <div className="grid gap-4 pl-4 sm:grid-cols-2">
+          <DateSelect
+            label="一阶段时间"
+            defaultValue={local.stage_1_date ?? local.audit_date ?? ""}
+            onChange={(v) => save({ stage_1_date: v || null })}
+          />
+          <DateSelect
+            label="二阶段时间"
+            defaultValue={local.stage_2_date ?? ""}
+            onChange={(v) => save({ stage_2_date: v || null })}
           />
         </div>
       )}
-      <label className="flex items-center gap-2 rounded-lg border p-3">
-        <Checkbox
-          checked={local.teacher_invoice_processed}
-          onCheckedChange={(c) => save({ teacher_invoice_processed: c === true })}
-        />
-        <span>老师发票报销已处理</span>
-      </label>
+      {hasTravelExpense && (
+        <>
+          <label className="flex items-center gap-2 rounded-lg border p-3">
+            <Checkbox
+              checked={local.teacher_invoice_provided}
+              onCheckedChange={(c) => save({ teacher_invoice_provided: c === true })}
+            />
+            <span>老师发票是否提供</span>
+          </label>
+          <label className="flex items-center gap-2 rounded-lg border p-3">
+            <Checkbox
+              checked={local.teacher_invoice_processed}
+              onCheckedChange={(c) => save({ teacher_invoice_processed: c === true })}
+            />
+            <span>老师发票报销已处理</span>
+          </label>
+        </>
+      )}
       <label className="flex items-center gap-2 rounded-lg border p-3">
         <Checkbox
           checked={local.feedback_submitted}
@@ -406,8 +489,10 @@ function TrainingTab({
 
 export function ProjectDetail({ project }: { project: ProjectWithRelations }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [projectType, setProjectType] = useState<ProjectType>(project.project_type);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   async function ensureProgressForType(type: ProjectType) {
     const supabase = createClient();
@@ -427,17 +512,24 @@ export function ProjectDetail({ project }: { project: ProjectWithRelations }) {
       formData.set("project_type", nextType);
       formData.set("status", project.status);
       formData.set("contract_no", project.contract_no ?? "");
+      formData.set("business_source", project.business_source ?? "");
       formData.set("notes", project.notes ?? "");
       await updateProject(project.id, formData);
       await ensureProgressForType(nextType);
       router.refresh();
+      toast({ title: "项目类型已更新", variant: "success" });
     });
   }
 
   function handleDelete() {
-    if (!confirm("确定删除此项目？此操作不可恢复。")) return;
+    setConfirmDelete(true);
+  }
+
+  function confirmDeleteProject() {
     startTransition(async () => {
       await deleteProject(project.id);
+      setConfirmDelete(false);
+      toast({ title: "项目已删除", variant: "success" });
       router.push("/projects");
       router.refresh();
     });
@@ -450,10 +542,35 @@ export function ProjectDetail({ project }: { project: ProjectWithRelations }) {
           <h1 className="text-2xl font-bold">{project.client_name}</h1>
           <p className="text-slate-500">合同号 {project.contract_no ?? "无"}</p>
         </div>
-        <Button variant="destructive" onClick={handleDelete} disabled={isPending}>
-          删除项目
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              toast({ title: "返回项目列表", variant: "info" });
+              router.push("/projects");
+            }}
+            disabled={isPending}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            返回列表
+          </Button>
+          <Button variant="destructive" onClick={handleDelete} disabled={isPending}>
+            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            删除项目
+          </Button>
+        </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="删除项目？"
+        description="此操作不可恢复，项目相关财务与进度信息都会一并删除。"
+        confirmLabel="确认删除"
+        destructive
+        pending={isPending}
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={confirmDeleteProject}
+      />
 
       <Card>
         <CardHeader>
@@ -465,6 +582,7 @@ export function ProjectDetail({ project }: { project: ProjectWithRelations }) {
             action={async (formData) => {
               formData.set("project_type", projectType);
               await updateProject(project.id, formData);
+              toast({ title: "基本信息已保存", variant: "success" });
               router.refresh();
             }}
           >
@@ -496,11 +614,20 @@ export function ProjectDetail({ project }: { project: ProjectWithRelations }) {
                 <option value="active">进行中</option>
                 <option value="completed">已完成</option>
                 <option value="archived">已归档</option>
+                <option value="on_hold">项目搁置</option>
               </select>
             </div>
             <div className="space-y-2">
               <Label>合同号</Label>
               <Input name="contract_no" defaultValue={project.contract_no ?? ""} />
+            </div>
+            <div className="space-y-2">
+              <Label>业务来源</Label>
+              <Input
+                name="business_source"
+                defaultValue={project.business_source ?? ""}
+                placeholder="例如：老客户介绍、展会、官网"
+              />
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label>备注</Label>
@@ -518,33 +645,40 @@ export function ProjectDetail({ project }: { project: ProjectWithRelations }) {
         projectId={project.id}
         projectType={projectType}
         finance={project.contract_finance}
+        installments={project.installment_payments ?? []}
       />
 
-      <Tabs defaultValue="finance">
-        <TabsList>
-          <TabsTrigger value="finance">财务状态</TabsTrigger>
-          <TabsTrigger value="progress">进度</TabsTrigger>
-        </TabsList>
-        <TabsContent value="finance">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">财务状态</CardTitle>
+        </CardHeader>
+        <CardContent>
           <FinanceTab
             key={`${project.id}-finance-${project.contract_finance?.updated_at ?? "new"}`}
             projectId={project.id}
             finance={project.contract_finance}
           />
-        </TabsContent>
-        <TabsContent value="progress">
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">进度</CardTitle>
+        </CardHeader>
+        <CardContent>
           {projectType === "certification" ? (
             <CertificationTab
               projectId={project.id}
               progress={project.certification_progress}
+              hasTravelExpense={project.contract_finance?.has_travel_expense ?? false}
             />
           ) : projectType === "training" ? (
             <TrainingTab projectId={project.id} progress={project.training_progress} />
           ) : (
             <p className="text-slate-500">此项目类型暂无专用进度模板</p>
           )}
-        </TabsContent>
-      </Tabs>
+        </CardContent>
+      </Card>
     </div>
   );
 }

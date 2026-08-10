@@ -3,13 +3,20 @@ export type ProjectType =
   | "training"
   | "technical_service"
   | "custom";
-export type ProjectStatus = "active" | "completed" | "archived";
+export type ProjectStatus = "active" | "completed" | "archived" | "on_hold";
 export type EventType =
   | "client_visit"
   | "leave"
   | "audit"
   | "other";
-export type DocType = "contract" | "certification" | "template" | "other";
+export type LeaveKind = "sick" | "annual" | "only_child";
+export type DocType =
+  | "cert_contract"
+  | "training_agreement"
+  | "tech_service_agreement"
+  | "cert_form"
+  | "template"
+  | "other";
 
 export interface Project {
   id: string;
@@ -19,6 +26,7 @@ export interface Project {
   project_type: ProjectType;
   status: ProjectStatus;
   contract_no: string | null;
+  business_source: string;
   notes: string;
   created_at: string;
   updated_at: string;
@@ -70,6 +78,9 @@ export interface CertificationProgress {
   project_id: string;
   audit_scheduled: boolean;
   audit_date: string | null;
+  stage_1_date: string | null;
+  stage_2_date: string | null;
+  teacher_invoice_provided: boolean;
   teacher_invoice_processed: boolean;
   feedback_submitted: boolean;
   feedback_processed: boolean;
@@ -96,8 +107,20 @@ export interface CalendarEvent {
   start_date: string;
   end_date: string;
   event_type: EventType;
+  leave_kind: LeaveKind | null;
   project_id: string | null;
+  province: string;
+  city: string;
   description: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserLeaveSettings {
+  user_id: string;
+  annual_leave_days: number;
+  only_child_leave_days: number;
+  sick_leave_days_per_month: number;
   created_at: string;
   updated_at: string;
 }
@@ -110,9 +133,21 @@ export interface Memo {
   tags: string[];
   is_pinned: boolean;
   project_id: string | null;
+  event_date: string | null;
+  province: string;
+  city: string;
+  add_to_calendar: boolean;
+  calendar_event_id: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export type DocumentSource =
+  | "upload"
+  | "google_drive"
+  | "nutstore"
+  | "local_folder"
+  | "other_link";
 
 export interface Document {
   id: string;
@@ -120,10 +155,28 @@ export interface Document {
   project_id: string | null;
   doc_type: DocType;
   file_name: string;
-  storage_path: string;
+  storage_path: string | null;
+  external_url: string | null;
+  source: DocumentSource;
+  provider_file_id: string | null;
   file_size: number | null;
   mime_type: string | null;
   local_cache_path: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CloudProvider = "google_drive" | "nutstore" | "local_folder";
+
+export interface UserCloudAccount {
+  id: string;
+  user_id: string;
+  provider: CloudProvider;
+  account_email: string | null;
+  access_token: string | null;
+  refresh_token: string | null;
+  token_expires_at: string | null;
+  metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }

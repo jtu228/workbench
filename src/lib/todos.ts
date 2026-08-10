@@ -12,6 +12,10 @@ export function buildTodoItems(
   const todos: TodoItem[] = [];
 
   for (const project of projects) {
+    if (project.status === "on_hold" || project.status === "archived") {
+      continue;
+    }
+
     const finance = project.contract_finance;
     if (finance) {
       if (!finance.is_invoiced) {
@@ -67,11 +71,17 @@ export function buildTodoItems(
 
     if (project.project_type === "certification" && project.certification_progress) {
       const cp = project.certification_progress;
-      if (cp.audit_scheduled && cp.audit_date && !cp.teacher_invoice_processed) {
+      if (
+        finance?.has_travel_expense &&
+        cp.audit_scheduled &&
+        (cp.stage_1_date || cp.stage_2_date || cp.audit_date) &&
+        !cp.teacher_invoice_processed
+      ) {
+        const dates = [cp.stage_1_date, cp.stage_2_date].filter(Boolean).join(" / ");
         todos.push({
           id: `${project.id}-teacher-invoice`,
           title: `${project.client_name}：老师发票未报销`,
-          description: `审核日期 ${cp.audit_date}`,
+          description: dates ? `审核时间 ${dates}` : "请处理老师发票报销",
           href: `/projects/${project.id}`,
           priority: "high",
         });
@@ -119,9 +129,16 @@ export function buildTodoItems(
       const due = new Date(inst.due_date);
       if (due <= weekLater) {
         const project = projects.find((p) => p.id === inst.project_id);
+        if (
+          !project ||
+          project.status === "on_hold" ||
+          project.status === "archived"
+        ) {
+          continue;
+        }
         todos.push({
           id: `inst-${inst.id}`,
-          title: `${project?.client_name ?? "项目"}：第${inst.period_number}期付款即将到期`,
+          title: `${project.client_name}：第${inst.period_number}期付款即将到期`,
           description: `应付日期 ${inst.due_date}`,
           href: `/projects/${inst.project_id}`,
           priority: due < today ? "high" : "medium",

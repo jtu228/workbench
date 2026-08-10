@@ -105,6 +105,54 @@ export const getDocuments = cache(async () => {
   return data ?? [];
 });
 
+export const getGoogleDriveAccount = cache(async () => {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data, error } = await supabase
+    .from("user_cloud_accounts")
+    .select("id, provider, account_email, token_expires_at, created_at, updated_at")
+    .eq("user_id", user.id)
+    .eq("provider", "google_drive")
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+});
+
+export const getNutstoreAccount = cache(async () => {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data, error } = await supabase
+    .from("user_cloud_accounts")
+    .select("id, provider, account_email, created_at, updated_at")
+    .eq("user_id", user.id)
+    .eq("provider", "nutstore")
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+});
+
+export const getLocalFolderAccount = cache(async () => {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data, error } = await supabase
+    .from("user_cloud_accounts")
+    .select("id, provider, account_email, metadata, created_at, updated_at")
+    .eq("user_id", user.id)
+    .eq("provider", "local_folder")
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+});
+
 export const getContractNumberSettings = cache(async () => {
   const supabase = await createClient();
   const year = new Date().getFullYear();
@@ -112,6 +160,21 @@ export const getContractNumberSettings = cache(async () => {
     .from("contract_number_seq")
     .select("*")
     .eq("year", year)
+    .maybeSingle();
+  return data;
+});
+
+export const getLeaveSettings = cache(async () => {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data } = await supabase
+    .from("user_leave_settings")
+    .select("*")
+    .eq("user_id", user.id)
     .maybeSingle();
   return data;
 });

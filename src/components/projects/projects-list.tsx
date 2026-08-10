@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import type { ProjectWithRelations } from "@/lib/types/database";
 import { formatCurrency, getProjectDisplayAmount } from "@/lib/utils";
 
 export function ProjectsList({ projects }: { projects: ProjectWithRelations[] }) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [type, setType] = useState("all");
   const [status, setStatus] = useState("all");
@@ -66,6 +67,7 @@ export function ProjectsList({ projects }: { projects: ProjectWithRelations[] })
             <SelectItem value="active">进行中</SelectItem>
             <SelectItem value="completed">已完成</SelectItem>
             <SelectItem value="archived">已归档</SelectItem>
+            <SelectItem value="on_hold">项目搁置</SelectItem>
           </SelectContent>
         </Select>
         <Select value={finance} onValueChange={setFinance}>
@@ -104,11 +106,21 @@ export function ProjectsList({ projects }: { projects: ProjectWithRelations[] })
               filtered.map((project) => {
                 const f = project.contract_finance;
                 return (
-                  <tr key={project.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
-                      <Link href={`/projects/${project.id}`} className="font-medium text-slate-900 hover:underline">
-                        {project.client_name}
-                      </Link>
+                  <tr
+                    key={project.id}
+                    role="link"
+                    tabIndex={0}
+                    className="cursor-pointer transition-colors duration-150 hover:bg-slate-50 active:bg-slate-100"
+                    onClick={() => router.push(`/projects/${project.id}`)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        router.push(`/projects/${project.id}`);
+                      }
+                    }}
+                  >
+                    <td className="px-4 py-3 font-medium text-slate-900">
+                      {project.client_name}
                     </td>
                     <td className="px-4 py-3">{PROJECT_TYPE_LABELS[project.project_type]}</td>
                     <td className="px-4 py-3">{project.contract_no ?? "—"}</td>

@@ -1,22 +1,25 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { AlertCircle, ArrowRight, FolderKanban } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { LeaveBalanceSummary } from "@/components/calendar/leave-balance-summary";
+import { WeekPreviewCalendar } from "@/components/calendar/week-preview-calendar";
 import {
   getAllInstallments,
   getCalendarEvents,
+  getLeaveSettings,
   getProjectsWithRelations,
 } from "@/lib/queries";
-import { buildTodoItems, upcomingEvents } from "@/lib/todos";
-import { EVENT_TYPE_LABELS } from "@/lib/constants";
-import { formatDate } from "@/lib/utils";
+import { buildTodoItems } from "@/lib/todos";
+import { DEFAULT_LEAVE_SETTINGS, getLeaveBalances } from "@/lib/leave";
 import { PROJECT_TYPE_LABELS } from "@/lib/constants";
 
 export default async function DashboardPage() {
-  const [projects, installments, events] = await Promise.all([
+  const [projects, installments, events, leaveSettings] = await Promise.all([
     getProjectsWithRelations(),
     getAllInstallments(),
     getCalendarEvents(),
+    getLeaveSettings(),
   ]);
 
   const stats = {
@@ -28,8 +31,8 @@ export default async function DashboardPage() {
   };
 
   const todos = buildTodoItems(projects, installments);
-  const upcoming = upcomingEvents(events, 14);
   const activeProjects = projects.filter((p) => p.status === "active").slice(0, 5);
+  const leaveBalances = getLeaveBalances(events, leaveSettings ?? DEFAULT_LEAVE_SETTINGS);
 
   return (
     <div className="space-y-6">
@@ -55,83 +58,64 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-amber-500" />
-              待办提醒
-            </CardTitle>
-            <CardDescription>需要跟进的合同与项目事项</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {todos.length === 0 ? (
-              <p className="text-sm text-slate-500">暂无待办，一切顺利！</p>
-            ) : (
-              <ul className="space-y-3">
-                {todos.slice(0, 8).map((todo) => (
-                  <li key={todo.id}>
-                    <Link
-                      href={todo.href}
-                      className="flex items-start justify-between gap-3 rounded-lg border border-slate-100 p-3 hover:bg-slate-50"
-                    >
-                      <div>
-                        <p className="text-sm font-medium text-slate-900">{todo.title}</p>
-                        <p className="text-xs text-slate-500">{todo.description}</p>
-                      </div>
-                      <Badge
-                        variant={
-                          todo.priority === "high"
-                            ? "danger"
-                            : todo.priority === "medium"
-                              ? "warning"
-                              : "secondary"
-                        }
-                      >
-                        {todo.priority === "high" ? "紧急" : todo.priority === "medium" ? "一般" : "低"}
-                      </Badge>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>近期日程</CardTitle>
-            <CardDescription>未来 14 天的安排</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {upcoming.length === 0 ? (
-              <p className="text-sm text-slate-500">暂无近期日程</p>
-            ) : (
-              <ul className="space-y-3">
-                {upcoming.map((event) => (
-                  <li
-                    key={event.id}
-                    className="flex items-center justify-between rounded-lg border border-slate-100 p-3"
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-amber-500" />
+            待办提醒
+          </CardTitle>
+          <CardDescription>需要跟进的合同与项目事项</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {todos.length === 0 ? (
+            <p className="text-sm text-slate-500">暂无待办，一切顺利！</p>
+          ) : (
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {todos.slice(0, 8).map((todo) => (
+                <li key={todo.id}>
+                  <Link
+                    href={todo.href}
+                    className="flex items-start justify-between gap-3 rounded-lg border border-slate-100 p-3 transition-all duration-150 hover:border-slate-200 hover:bg-slate-50 hover:shadow-sm active:scale-[0.99]"
                   >
                     <div>
-                      <p className="text-sm font-medium">{event.title}</p>
-                      <p className="text-xs text-slate-500">
-                        {EVENT_TYPE_LABELS[event.event_type] ?? event.event_type} · {formatDate(event.start_date)}
-                      </p>
+                      <p className="text-sm font-medium text-slate-900">{todo.title}</p>
+                      <p className="text-xs text-slate-500">{todo.description}</p>
                     </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <Link
-              href="/calendar"
-              className="mt-4 inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900"
-            >
-              查看日历 <ArrowRight className="h-4 w-4" />
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
+                    <Badge
+                      variant={
+                        todo.priority === "high"
+                          ? "danger"
+                          : todo.priority === "medium"
+                            ? "warning"
+                            : "secondary"
+                      }
+                    >
+                      {todo.priority === "high" ? "紧急" : todo.priority === "medium" ? "一般" : "低"}
+                    </Badge>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>近期日程</CardTitle>
+          <CardDescription>本月日历总览（含假期余额）</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <LeaveBalanceSummary balances={leaveBalances} />
+          <WeekPreviewCalendar events={events} />
+          <Link
+            href="/calendar"
+            className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900"
+          >
+            查看日历 <ArrowRight className="h-4 w-4" />
+          </Link>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -149,7 +133,7 @@ export default async function DashboardPage() {
                 <Link
                   key={project.id}
                   href={`/projects/${project.id}`}
-                  className="flex items-center justify-between py-3 hover:bg-slate-50"
+                  className="flex items-center justify-between py-3 transition-colors duration-150 hover:bg-slate-50 active:bg-slate-100"
                 >
                   <div>
                     <p className="font-medium">{project.client_name}</p>

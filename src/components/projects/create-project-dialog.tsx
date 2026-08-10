@@ -76,6 +76,14 @@ export function CreateProjectDialog() {
             <Input id="contract_no" name="contract_no" placeholder="例如：4400/QES/2026/86001" />
           </div>
           <div className="space-y-2">
+            <Label htmlFor="business_source">业务来源</Label>
+            <Input
+              id="business_source"
+              name="business_source"
+              placeholder="例如：老客户介绍、展会、官网"
+            />
+          </div>
+          <div className="space-y-2">
             <Label htmlFor="notes">备注</Label>
             <Textarea id="notes" name="notes" />
           </div>
