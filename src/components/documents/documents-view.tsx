@@ -141,8 +141,10 @@ export function DocumentsView({
       );
       if (result.mode === "office") {
         toast({
-          title: "已调起本机 Office",
-          description: "正在打开本地原文件",
+          title: "已尝试用 Excel/Office 打开",
+          description: result.absolutePath
+            ? `若未弹出，路径已复制：${result.absolutePath} — 可粘贴到资源管理器地址栏回车`
+            : "若未弹出，请检查上方「本机绝对路径」是否为 G:\\CCIC 等正确路径",
           variant: "success",
         });
       } else if (result.mode === "browser") {

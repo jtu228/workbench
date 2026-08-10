@@ -64,8 +64,10 @@ export function LocalFolderPanel({
       const result = await openLocalFile(root, file.path, meta?.rootAbsolutePath);
       if (result.mode === "office") {
         toast({
-          title: "已调起本机 Office",
-          description: "正在打开本地原文件",
+          title: "已尝试用 Excel/Office 打开",
+          description: result.absolutePath
+            ? `若未弹出，路径已复制：${result.absolutePath} — 可粘贴到资源管理器地址栏回车`
+            : "若未弹出，请检查上方「本机绝对路径」是否为 G:\\CCIC 等正确路径",
           variant: "success",
         });
       } else if (result.mode === "browser") {
@@ -164,8 +166,8 @@ export function LocalFolderPanel({
           本机 Google Drive（G:\）
         </CardTitle>
         <CardDescription>
-          文件留在本机 Google Drive 盘。Word / Excel / PPT 用本机 Office
-          打开；PDF / 图片在浏览器预览。请用 Chrome / Edge。
+          文件留在本机 Google Drive 盘。Word / Excel / PPT 会尝试调起本机
+          Office；若浏览器拦截，路径会自动复制，可粘贴到资源管理器打开。PDF / 图片在浏览器预览。
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

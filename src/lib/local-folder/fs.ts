@@ -26,6 +26,7 @@ export type LocalEntry = {
 export type OpenLocalResult = {
   mode: "office" | "browser" | "download";
   file: File;
+  absolutePath?: string;
 };
 
 function supportsDirectoryPicker() {
@@ -96,17 +97,24 @@ export function joinAbsolutePath(rootAbsolutePath: string, relativePath: string)
   return [root, ...parts].join("\\");
 }
 
-/** file:///G:/folder/file.xlsx */
-export function toFileUrl(absoluteWindowsPath: string) {
+/** file:///G:/folder/file.xlsx — RFC 8089 style for Office URI handlers */
+export function toOfficeFileUrl(absoluteWindowsPath: string) {
   const normalized = absoluteWindowsPath.replace(/\\/g, "/");
-  const withLead = /^[A-Za-z]:/.test(normalized) ? `/${normalized}` : normalized;
-  return `file://${withLead
-    .split("/")
-    .map((seg, i) => {
-      if (i === 1 && /^[A-Za-z]:$/.test(seg)) return seg;
-      return encodeURIComponent(seg);
-    })
-    .join("/")}`;
+  const parts = normalized.split("/").filter(Boolean);
+  if (parts.length === 0) return "file:///";
+  const drive = parts[0];
+  const rest = parts.slice(1).map((seg) => encodeURIComponent(seg)).join("/");
+  const path = rest ? `${drive}/${rest}` : drive;
+  return `file:///${path}`;
+}
+
+export function getAbsolutePathForEntry(
+  relativePath: string,
+  rootAbsolutePath: string,
+  rootName?: string
+) {
+  const absRoot = rootAbsolutePath || inferRootAbsolutePath(rootName || "");
+  return joinAbsolutePath(absRoot, relativePath);
 }
 
 function officeSchemeForName(fileName: string) {
@@ -126,21 +134,37 @@ function isBrowserPreviewable(file: File) {
   }
   if (type === "application/pdf") return true;
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  return ["pdf", "png", "jpg", "jpeg", "gif", "webp", "svg", "txt", "md", "csv", "html", "htm"].includes(ext);
+  return ["pdf", "png", "jpg", "jpeg", "gif", "webp", "svg", "txt", "md", "html", "htm"].includes(ext);
+}
+
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function tryLaunchOfficeUri(uri: string) {
+  const opened = window.open(uri, "_blank");
+  if (!opened) {
+    window.location.href = uri;
+  }
 }
 
 function launchOfficeLocal(absolutePath: string, fileName: string) {
   const scheme = officeSchemeForName(fileName);
   if (!scheme) return false;
-  const fileUrl = toFileUrl(absolutePath);
-  // ofe = open for edit with installed Office
-  const uri = `${scheme}:ofe|u|${fileUrl}`;
-  const a = document.createElement("a");
-  a.href = uri;
-  a.style.display = "none";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  const fileUrl = toOfficeFileUrl(absolutePath);
+  const uris = [
+    `${scheme}:ofe|u|${fileUrl}`,
+    `${scheme}:ofv|u|${fileUrl}`,
+    `ms-office:ofe|u|${fileUrl}`,
+  ];
+  for (const uri of uris) {
+    tryLaunchOfficeUri(uri);
+  }
   return true;
 }
 
@@ -309,9 +333,6 @@ export async function listLocalDirectory(
   return entries;
 }
 
-/**
- * Read a local file handle into a File blob (for in-app preview).
- */
 export async function readLocalFile(
   root: FileSystemDirectoryHandle,
   relativePath: string
@@ -332,9 +353,7 @@ export function launchLocalOffice(
   fileName: string,
   rootAbsolutePath?: string
 ) {
-  const absRoot =
-    rootAbsolutePath ||
-    `${DEFAULT_DRIVE_LETTER}\\`;
+  const absRoot = rootAbsolutePath || `${DEFAULT_DRIVE_LETTER}\\`;
   const absolutePath = joinAbsolutePath(absRoot, relativePath);
   if (!launchOfficeLocal(absolutePath, fileName)) {
     throw new Error("无法识别的 Office 文件类型");
@@ -343,7 +362,7 @@ export function launchLocalOffice(
 
 /**
  * Open strategy:
- * 1. Word / Excel / PPT → launch local Office on G:\ path
+ * 1. Word / Excel / PPT → launch local Office on G:\ path (+ copy path fallback)
  * 2. PDF / images → browser preview tab
  * 3. Other → blob open (may download)
  */
@@ -361,15 +380,15 @@ export async function openLocalFile(
     meta?.rootAbsolutePath ||
     inferRootAbsolutePath((await getStoredLocalMeta())?.name || root.name);
 
-  // Office first: open local original file
   if (officeSchemeForName(file.name) && absRoot) {
-    const launched = launchOfficeLocal(joinAbsolutePath(absRoot, relativePath), file.name);
+    const absolutePath = joinAbsolutePath(absRoot, relativePath);
+    const launched = launchOfficeLocal(absolutePath, file.name);
     if (launched) {
-      return { mode: "office", file };
+      const copied = await copyText(absolutePath);
+      return { mode: "office", file, absolutePath: copied ? absolutePath : undefined };
     }
   }
 
-  // PDF / images / text in browser
   if (isBrowserPreviewable(file)) {
     const url = URL.createObjectURL(file);
     const win = window.open(url, "_blank", "noopener,noreferrer");
