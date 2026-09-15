@@ -11,6 +11,8 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns";
+import { DayMarkMeta, dayCellClass, dayNumberClass, weekendHeaderClass } from "@/components/calendar/day-mark";
+import { getChinaDayMark } from "@/lib/cn-holidays";
 import { EVENT_TYPE_COLORS, EVENT_TYPE_LABELS, LEAVE_KIND_COLORS, LEAVE_KIND_LABELS } from "@/lib/constants";
 import { formatEventLocation } from "@/lib/locations";
 import type { CalendarEvent, EventType, LeaveKind } from "@/lib/types/database";
@@ -58,10 +60,13 @@ export function WeekPreviewCalendar({ events }: { events: CalendarEvent[] }) {
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200">
       <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
-        {WEEKDAYS.map((d) => (
+        {WEEKDAYS.map((d, index) => (
           <div
             key={d}
-            className="px-2 py-2.5 text-center text-sm font-medium text-slate-500"
+            className={cn(
+              "px-2 py-2.5 text-center text-sm font-medium",
+              weekendHeaderClass(index)
+            )}
           >
             {d}
           </div>
@@ -71,6 +76,7 @@ export function WeekPreviewCalendar({ events }: { events: CalendarEvent[] }) {
         {days.map((day) => {
           const inMonth = isSameMonth(day, today);
           const todayCell = isToday(day);
+          const mark = getChinaDayMark(day);
           const dayEvents = inMonth ? events.filter((e) => eventOnDay(e, day)) : [];
 
           return (
@@ -78,22 +84,23 @@ export function WeekPreviewCalendar({ events }: { events: CalendarEvent[] }) {
               key={day.toISOString()}
               href="/calendar"
               className={cn(
-                "min-h-[118px] bg-white p-2 transition-colors hover:bg-slate-50 sm:min-h-[132px] sm:p-2.5",
-                !inMonth && "bg-slate-50/80",
-                todayCell && inMonth && "bg-blue-50/80"
+                "min-h-[118px] bg-white p-2 transition-colors sm:min-h-[132px] sm:p-2.5",
+                mark.isOff && inMonth && !todayCell ? "hover:bg-rose-100/80" : "hover:bg-slate-50",
+                dayCellClass({ inMonth, today: todayCell, isOff: mark.isOff })
               )}
             >
-              <div className="mb-1.5 flex items-center justify-between">
+              <div className="mb-1.5 flex items-start justify-between gap-1">
                 <span
-                  className={cn(
-                    "inline-flex h-7 min-w-7 items-center justify-center rounded-full px-1.5 text-sm tabular-nums",
-                    !inMonth && "text-slate-300",
-                    inMonth && "text-slate-800",
-                    todayCell && inMonth && "bg-slate-900 font-semibold text-white"
-                  )}
+                  className={dayNumberClass({
+                    inMonth,
+                    today: todayCell,
+                    isOff: mark.isOff,
+                    size: "md",
+                  })}
                 >
                   {format(day, "d")}
                 </span>
+                <DayMarkMeta date={day} muted={!inMonth} />
               </div>
               {inMonth && (
                 <div className="space-y-1">

@@ -181,7 +181,7 @@ export function CalendarView({
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         {Object.entries(EVENT_TYPE_LABELS).map(([key, label]) => (
           <div key={key} className="flex items-center gap-2 text-sm">
             <span
@@ -191,6 +191,19 @@ export function CalendarView({
             {label}
           </div>
         ))}
+        <span className="hidden h-4 w-px bg-slate-200 sm:block" />
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <span className="font-medium text-red-500">六日</span>
+          周末
+        </div>
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <span className="text-xs font-medium text-red-500">休</span>
+          节假日
+        </div>
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <span className="text-xs font-medium text-slate-500">班</span>
+          调休上班
+        </div>
       </div>
 
       {showForm && (

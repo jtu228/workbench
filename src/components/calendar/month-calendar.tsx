@@ -8,7 +8,6 @@ import {
   format,
   isSameDay,
   isSameMonth,
-  isToday,
   parseISO,
   startOfMonth,
   startOfWeek,
@@ -16,8 +15,10 @@ import {
 } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { DayMarkMeta, dayCellClass, dayNumberClass, weekendHeaderClass } from "@/components/calendar/day-mark";
+import { getChinaDayMark } from "@/lib/cn-holidays";
 import { EVENT_TYPE_COLORS, EVENT_TYPE_LABELS, LEAVE_KIND_COLORS, LEAVE_KIND_LABELS } from "@/lib/constants";
 import { formatEventLocation } from "@/lib/locations";
 import type { CalendarEvent, EventType, LeaveKind } from "@/lib/types/database";
@@ -54,6 +55,19 @@ function eventOnDay(event: CalendarEvent, day: Date) {
   return start <= dayEnd && end >= dayStart;
 }
 
+function selectedDayCaption(day: Date) {
+  const mark = getChinaDayMark(day);
+  const extra = mark.isMakeupWork
+    ? "调休上班"
+    : mark.holidayName
+      ? mark.holidayName
+      : mark.isOff
+        ? "周末"
+        : null;
+  const base = format(day, "M月d日 EEEE", { locale: zhCN });
+  return extra ? `${base} · ${extra} 的日程` : `${base} 的日程`;
+}
+
 export function MonthCalendar({
   events,
   onEventClick,
@@ -63,6 +77,11 @@ export function MonthCalendar({
 }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [todayKey, setTodayKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTodayKey(format(new Date(), "yyyy-MM-dd"));
+  }, []);
 
   const days = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
@@ -105,10 +124,13 @@ export function MonthCalendar({
       </div>
 
       <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200">
-        {WEEKDAYS.map((day) => (
+        {WEEKDAYS.map((day, index) => (
           <div
             key={day}
-            className="bg-slate-50 py-2 text-center text-xs font-medium text-slate-500"
+            className={cn(
+              "bg-slate-50 py-2 text-center text-xs font-medium",
+              weekendHeaderClass(index)
+            )}
           >
             {day}
           </div>
@@ -117,6 +139,8 @@ export function MonthCalendar({
           const dayEvents = events.filter((e) => eventOnDay(e, day));
           const inMonth = isSameMonth(day, currentMonth);
           const selected = selectedDay ? isSameDay(day, selectedDay) : false;
+          const mark = getChinaDayMark(day);
+          const today = todayKey === format(day, "yyyy-MM-dd");
 
           return (
             <button
@@ -124,20 +148,23 @@ export function MonthCalendar({
               type="button"
               onClick={() => setSelectedDay(day)}
               className={cn(
-                "min-h-[88px] bg-white p-1.5 text-left transition-all duration-150 hover:bg-slate-50 active:bg-slate-100",
-                !inMonth && "bg-slate-50/80 text-slate-400",
-                selected && "ring-2 ring-inset ring-slate-900",
-                isToday(day) && "bg-blue-50/50"
+                "min-h-[88px] bg-white p-1.5 text-left transition-all duration-150 active:bg-slate-100",
+                mark.isOff && inMonth && !today ? "hover:bg-rose-100/80" : "hover:bg-slate-50",
+                dayCellClass({ inMonth, today, isOff: mark.isOff, selected })
               )}
             >
-              <span
-                className={cn(
-                  "inline-flex h-6 w-6 items-center justify-center rounded-full text-xs",
-                  isToday(day) && "bg-slate-900 font-medium text-white"
-                )}
-              >
-                {format(day, "d")}
-              </span>
+              <div className="flex items-start justify-between gap-1">
+                <span
+                  className={dayNumberClass({
+                    inMonth,
+                    today,
+                    isOff: mark.isOff,
+                  })}
+                >
+                  {format(day, "d")}
+                </span>
+                <DayMarkMeta date={day} muted={!inMonth} />
+              </div>
               <div className="mt-1 space-y-0.5">
                 {dayEvents.slice(0, 3).map((event) => (
                   <div
@@ -177,9 +204,7 @@ export function MonthCalendar({
 
       {selectedDay && (
         <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <h3 className="mb-3 font-medium">
-            {format(selectedDay, "M月d日 EEEE", { locale: zhCN })} 的日程
-          </h3>
+          <h3 className="mb-3 font-medium">{selectedDayCaption(selectedDay)}</h3>
           {selectedDayEvents.length === 0 ? (
             <p className="text-sm text-slate-500">当天暂无日程</p>
           ) : (
